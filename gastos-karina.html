@@ -5,6 +5,8 @@
 <title>Gastos Karina</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+<link rel="manifest" href="manifest.json">
+
 <style>
 :root{
   --bg:#0e0f13;
@@ -46,6 +48,7 @@ button{
 .lucro{background:#2ecc71;color:#000;font-weight:600;}
 .cartao{background:var(--yellow);color:#000;font-weight:600;}
 .apagar{background:var(--red);color:#fff;}
+.fechar{background:var(--green);color:#000;font-weight:600;}
 
 .resumo{margin-top:16px;font-size:14px;}
 .historico{margin-top:20px;font-size:13px;color:var(--sub);}
@@ -84,27 +87,31 @@ button{
     <button class="apagar" onclick="apagarUltimo()">Apagar último</button>
 
     <div class="resumo" id="resumo"></div>
+
+    <button class="fechar" onclick="fecharMes()">Fechar mês</button>
+
     <div class="historico" id="historico"></div>
   </div>
 </div>
 
 <script>
-const ID="karina-financeiro";
+const ID = "karina-financeiro";
+const WHATSAPP = "5511964568408"; // Karina
 
 function mesAtual(){
   const d=new Date();
   return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
 }
 
-document.getElementById("mesFiltro").value=mesAtual();
-document.getElementById("mesFiltro").addEventListener("change",carregar);
+mesFiltro.value = mesAtual();
+mesFiltro.addEventListener("change", carregar);
 
 function carregar(){
-  const mes=document.getElementById("mesFiltro").value;
-  const dados=JSON.parse(localStorage.getItem(ID+"-"+mes))||[];
+  const mes = mesFiltro.value;
+  const dados = JSON.parse(localStorage.getItem(ID+"-"+mes)) || [];
 
-  let gastos=0,lucros=0;
-  let cartao=0,pix=0,dinheiro=0;
+  let gastos=0, lucros=0;
+  let cartao=0, pix=0, dinheiro=0;
 
   dados.forEach(i=>{
     if(i.tipo==="gasto"){
@@ -112,10 +119,12 @@ function carregar(){
       if(i.forma==="CARTÃO") cartao+=i.valor;
       if(i.forma==="PIX") pix+=i.valor;
       if(i.forma==="DINHEIRO") dinheiro+=i.valor;
-    }else lucros+=i.valor;
+    }else{
+      lucros+=i.valor;
+    }
   });
 
-  document.getElementById("resumo").innerHTML=
+  resumo.innerHTML =
     `💸 Gastos: R$ ${gastos.toFixed(2)}<br>
      💰 Lucros: R$ ${lucros.toFixed(2)}<br>
      📊 Resultado: R$ ${(lucros-gastos).toFixed(2)}<hr>
@@ -123,43 +132,45 @@ function carregar(){
      📱 Pix: R$ ${pix.toFixed(2)}<br>
      💵 Dinheiro: R$ ${dinheiro.toFixed(2)}`;
 
-  document.getElementById("historico").innerHTML=dados.map(i=>
+  historico.innerHTML = dados.map(i =>
     `• ${i.tipo.toUpperCase()} – R$ ${i.valor.toFixed(2)}
-     (${i.desc} – ${i.forma}${i.mesRef?" – "+i.mesRef:""})`
+     (${i.desc} – ${i.forma}${i.mesRef ? " – "+i.mesRef : ""})`
   ).join("<br>");
 }
 
 function salvarGasto(){
-  const mes=mesFiltro.value;
-  const v=parseFloat(valor.value);
+  const mes = mesFiltro.value;
+  const v = parseFloat(valor.value);
   if(!v) return alert("Informe valor");
-  const dados=JSON.parse(localStorage.getItem(ID+"-"+mes))||[];
-  dados.push({tipo:"gasto",valor:v,forma:forma.value,desc:descricao.value||"-"});
-  localStorage.setItem(ID+"-"+mes,JSON.stringify(dados));
-  limpar();carregar();
+
+  const dados = JSON.parse(localStorage.getItem(ID+"-"+mes)) || [];
+  dados.push({tipo:"gasto", valor:v, forma:forma.value, desc:descricao.value||"-"});
+  localStorage.setItem(ID+"-"+mes, JSON.stringify(dados));
+  limpar(); carregar();
 }
 
 function salvarLucro(){
-  const mes=mesFiltro.value;
-  const v=parseFloat(valor.value);
+  const mes = mesFiltro.value;
+  const v = parseFloat(valor.value);
   if(!v) return alert("Informe valor");
-  const dados=JSON.parse(localStorage.getItem(ID+"-"+mes))||[];
-  dados.push({tipo:"lucro",valor:v,forma:forma.value,desc:descricao.value||"-"});
-  localStorage.setItem(ID+"-"+mes,JSON.stringify(dados));
-  limpar();carregar();
+
+  const dados = JSON.parse(localStorage.getItem(ID+"-"+mes)) || [];
+  dados.push({tipo:"lucro", valor:v, forma:forma.value, desc:descricao.value||"-"});
+  localStorage.setItem(ID+"-"+mes, JSON.stringify(dados));
+  limpar(); carregar();
 }
 
 function salvarCartao(){
-  const v=parseFloat(valor.value);
-  const p=parseInt(parcelas.value);
-  if(!v||!p) return alert("Informe valor e parcelas");
+  const v = parseFloat(valor.value);
+  const p = parseInt(parcelas.value);
+  if(!v || !p) return alert("Informe valor e parcelas");
 
   for(let i=0;i<p;i++){
-    const d=new Date(mesFiltro.value+"-01");
+    const d = new Date(mesFiltro.value+"-01");
     d.setMonth(d.getMonth()+i);
-    const mes=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
+    const mes = d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
 
-    const dados=JSON.parse(localStorage.getItem(ID+"-"+mes))||[];
+    const dados = JSON.parse(localStorage.getItem(ID+"-"+mes)) || [];
     dados.push({
       tipo:"gasto",
       valor:v/p,
@@ -167,21 +178,39 @@ function salvarCartao(){
       mesRef:mes,
       desc:`${descricao.value||"Compra"} ${i+1}/${p}`
     });
-    localStorage.setItem(ID+"-"+mes,JSON.stringify(dados));
+    localStorage.setItem(ID+"-"+mes, JSON.stringify(dados));
   }
-  limpar();carregar();
+  limpar(); carregar();
 }
 
 function apagarUltimo(){
-  const mes=mesFiltro.value;
-  const dados=JSON.parse(localStorage.getItem(ID+"-"+mes))||[];
+  const mes = mesFiltro.value;
+  const dados = JSON.parse(localStorage.getItem(ID+"-"+mes)) || [];
+  if(dados.length===0) return;
   dados.pop();
-  localStorage.setItem(ID+"-"+mes,JSON.stringify(dados));
+  localStorage.setItem(ID+"-"+mes, JSON.stringify(dados));
   carregar();
 }
 
+function fecharMes(){
+  const mes = mesFiltro.value;
+  const dados = JSON.parse(localStorage.getItem(ID+"-"+mes)) || [];
+
+  let gastos=0, lucros=0;
+  dados.forEach(i => i.tipo==="gasto" ? gastos+=i.valor : lucros+=i.valor);
+
+  const texto =
+    `📊 *Resumo financeiro – Karina*%0A%0A`+
+    `📅 Mês: ${mes}%0A`+
+    `💸 Gastos: R$ ${gastos.toFixed(2)}%0A`+
+    `💰 Lucros: R$ ${lucros.toFixed(2)}%0A`+
+    `📈 Resultado: R$ ${(lucros-gastos).toFixed(2)}`;
+
+  window.open(`https://wa.me/${WHATSAPP}?text=${texto}`, "_blank");
+}
+
 function limpar(){
-  valor.value="";parcelas.value="";descricao.value="";
+  valor.value=""; parcelas.value=""; descricao.value="";
 }
 
 carregar();
