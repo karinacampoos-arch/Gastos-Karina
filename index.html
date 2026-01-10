@@ -5,8 +5,6 @@
 <title>Gastos Karina</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<link rel="manifest" href="manifest.json">
-
 <style>
 :root{
   --bg:#0e0f13;
@@ -17,6 +15,7 @@
   --green:#25D366;
   --blue:#4f7cff;
   --red:#ff5c5c;
+  --yellow:#f1c40f;
 }
 body{
   margin:0;
@@ -29,61 +28,27 @@ body{
   margin:auto;
   padding:24px;
 }
-h1{
-  text-align:center;
-  font-size:20px;
-  margin-bottom:6px;
-}
-.subtitle{
-  text-align:center;
-  font-size:13px;
-  color:var(--sub);
-  margin-bottom:20px;
-}
-.card{
-  background:var(--card);
-  padding:22px;
-  border-radius:16px;
-}
-label{
-  display:block;
-  margin-top:14px;
-  font-size:13px;
-  color:var(--sub);
-}
-input{
-  width:100%;
-  padding:14px;
-  margin-top:6px;
-  border:none;
-  border-radius:10px;
-  background:var(--input);
-  color:var(--text);
-  font-size:16px;
+h1{text-align:center;font-size:20px;}
+.subtitle{text-align:center;font-size:13px;color:var(--sub);margin-bottom:20px;}
+.card{background:var(--card);padding:22px;border-radius:16px;}
+label{display:block;margin-top:14px;font-size:13px;color:var(--sub);}
+input,select{
+  width:100%;padding:14px;margin-top:6px;
+  border:none;border-radius:10px;
+  background:var(--input);color:var(--text);font-size:16px;
 }
 button{
-  width:100%;
-  padding:14px;
-  margin-top:14px;
-  border:none;
-  border-radius:12px;
-  font-size:15px;
-  cursor:pointer;
+  width:100%;padding:14px;margin-top:14px;
+  border:none;border-radius:12px;
+  font-size:15px;cursor:pointer;
 }
-.salvar{ background:var(--blue); color:#fff; }
-.lucro{ background:#2ecc71; color:#000; font-weight:600; }
-.apagar{ background:var(--red); color:#fff; }
-.fechar{ background:var(--green); color:#000; font-weight:600; }
+.salvar{background:var(--blue);color:#fff;}
+.lucro{background:#2ecc71;color:#000;font-weight:600;}
+.cartao{background:var(--yellow);color:#000;font-weight:600;}
+.apagar{background:var(--red);color:#fff;}
 
-.resumo{
-  margin-top:16px;
-  font-size:14px;
-}
-.historico{
-  margin-top:20px;
-  font-size:13px;
-  color:var(--sub);
-}
+.resumo{margin-top:16px;font-size:14px;}
+.historico{margin-top:20px;font-size:13px;color:var(--sub);}
 </style>
 </head>
 
@@ -93,128 +58,133 @@ button{
   <div class="subtitle">Controle mensal simples</div>
 
   <div class="card">
+
+    <label>Mês de visualização</label>
+    <input type="month" id="mesFiltro">
+
     <label>Valor (R$)</label>
-    <input type="number" id="valor" placeholder="Ex: 120">
+    <input type="number" id="valor">
+
+    <label>Parcelas (cartão)</label>
+    <input type="number" id="parcelas">
+
+    <label>Forma de pagamento</label>
+    <select id="forma">
+      <option value="DINHEIRO">Dinheiro</option>
+      <option value="PIX">Pix</option>
+      <option value="CARTÃO">Cartão</option>
+    </select>
 
     <label>Descrição</label>
-    <input type="text" id="descricao" placeholder="Ex: Material / Serviço">
+    <input type="text" id="descricao">
 
-    <button class="salvar" onclick="salvar('gasto')">Salvar gasto</button>
-    <button class="lucro" onclick="salvar('lucro')">Salvar lucro</button>
-    <button class="apagar" onclick="apagarUltimo()">Apagar último lançamento</button>
+    <button class="salvar" onclick="salvarGasto()">Salvar gasto</button>
+    <button class="lucro" onclick="salvarLucro()">Salvar lucro</button>
+    <button class="cartao" onclick="salvarCartao()">Salvar cartão parcelado</button>
+    <button class="apagar" onclick="apagarUltimo()">Apagar último</button>
 
     <div class="resumo" id="resumo"></div>
-
-    <button class="fechar" onclick="fecharMes()">Fechar mês (12:00)</button>
-
     <div class="historico" id="historico"></div>
   </div>
 </div>
 
 <script>
-const ID = "karina-financeiro";
-const WHATSAPP = "5511964568408";
+const ID="karina-financeiro";
 
 function mesAtual(){
-  const d = new Date();
+  const d=new Date();
   return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
 }
-function hoje(){
-  return new Date().toISOString().split("T")[0];
-}
 
-/* 🔐 BACKUP AUTOMÁTICO */
-function backup(){
-  const dataHora = new Date().toISOString();
-  const dados = localStorage.getItem(ID+"-"+mesAtual());
-  if(dados){
-    localStorage.setItem(ID+"-backup-"+dataHora, dados);
-  }
-}
+document.getElementById("mesFiltro").value=mesAtual();
+document.getElementById("mesFiltro").addEventListener("change",carregar);
 
 function carregar(){
-  const dados = JSON.parse(localStorage.getItem(ID+"-"+mesAtual())) || [];
-  let gastos = 0, lucros = 0;
+  const mes=document.getElementById("mesFiltro").value;
+  const dados=JSON.parse(localStorage.getItem(ID+"-"+mes))||[];
+
+  let gastos=0,lucros=0;
+  let cartao=0,pix=0,dinheiro=0;
 
   dados.forEach(i=>{
-    i.tipo === "gasto" ? gastos += i.valor : lucros += i.valor;
+    if(i.tipo==="gasto"){
+      gastos+=i.valor;
+      if(i.forma==="CARTÃO") cartao+=i.valor;
+      if(i.forma==="PIX") pix+=i.valor;
+      if(i.forma==="DINHEIRO") dinheiro+=i.valor;
+    }else lucros+=i.valor;
   });
 
-  const resultado = lucros - gastos;
-  const status = resultado >= 0 ? "✅ POSITIVO" : "❌ NEGATIVO";
+  document.getElementById("resumo").innerHTML=
+    `💸 Gastos: R$ ${gastos.toFixed(2)}<br>
+     💰 Lucros: R$ ${lucros.toFixed(2)}<br>
+     📊 Resultado: R$ ${(lucros-gastos).toFixed(2)}<hr>
+     💳 Cartão: R$ ${cartao.toFixed(2)}<br>
+     📱 Pix: R$ ${pix.toFixed(2)}<br>
+     💵 Dinheiro: R$ ${dinheiro.toFixed(2)}`;
 
-  document.getElementById("resumo").innerHTML =
-    "💸 Gastos: R$ " + gastos.toFixed(2) + "<br>" +
-    "💰 Lucros: R$ " + lucros.toFixed(2) + "<br>" +
-    "📊 Resultado: R$ " + resultado.toFixed(2) + "<br>" +
-    status;
-
-  document.getElementById("historico").innerHTML =
-    dados.map(i =>
-      `• ${i.tipo.toUpperCase()} – R$ ${i.valor.toFixed(2)} (${i.desc})`
-    ).join("<br>");
+  document.getElementById("historico").innerHTML=dados.map(i=>
+    `• ${i.tipo.toUpperCase()} – R$ ${i.valor.toFixed(2)}
+     (${i.desc} – ${i.forma}${i.mesRef?" – "+i.mesRef:""})`
+  ).join("<br>");
 }
 
-function salvar(tipo){
-  const valor = document.getElementById("valor").value;
-  const desc = document.getElementById("descricao").value || "-";
-  if(!valor){
-    alert("Informe um valor");
-    return;
+function salvarGasto(){
+  const mes=mesFiltro.value;
+  const v=parseFloat(valor.value);
+  if(!v) return alert("Informe valor");
+  const dados=JSON.parse(localStorage.getItem(ID+"-"+mes))||[];
+  dados.push({tipo:"gasto",valor:v,forma:forma.value,desc:descricao.value||"-"});
+  localStorage.setItem(ID+"-"+mes,JSON.stringify(dados));
+  limpar();carregar();
+}
+
+function salvarLucro(){
+  const mes=mesFiltro.value;
+  const v=parseFloat(valor.value);
+  if(!v) return alert("Informe valor");
+  const dados=JSON.parse(localStorage.getItem(ID+"-"+mes))||[];
+  dados.push({tipo:"lucro",valor:v,forma:forma.value,desc:descricao.value||"-"});
+  localStorage.setItem(ID+"-"+mes,JSON.stringify(dados));
+  limpar();carregar();
+}
+
+function salvarCartao(){
+  const v=parseFloat(valor.value);
+  const p=parseInt(parcelas.value);
+  if(!v||!p) return alert("Informe valor e parcelas");
+
+  for(let i=0;i<p;i++){
+    const d=new Date(mesFiltro.value+"-01");
+    d.setMonth(d.getMonth()+i);
+    const mes=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
+
+    const dados=JSON.parse(localStorage.getItem(ID+"-"+mes))||[];
+    dados.push({
+      tipo:"gasto",
+      valor:v/p,
+      forma:"CARTÃO",
+      mesRef:mes,
+      desc:`${descricao.value||"Compra"} ${i+1}/${p}`
+    });
+    localStorage.setItem(ID+"-"+mes,JSON.stringify(dados));
   }
-
-  let dados = JSON.parse(localStorage.getItem(ID+"-"+mesAtual())) || [];
-  dados.push({ tipo, valor: parseFloat(valor), desc });
-  localStorage.setItem(ID+"-"+mesAtual(), JSON.stringify(dados));
-
-  backup();
-
-  document.getElementById("valor").value = "";
-  document.getElementById("descricao").value = "";
-  carregar();
+  limpar();carregar();
 }
 
 function apagarUltimo(){
-  let dados = JSON.parse(localStorage.getItem(ID+"-"+mesAtual())) || [];
-  if(dados.length === 0){
-    alert("Nada para apagar");
-    return;
-  }
+  const mes=mesFiltro.value;
+  const dados=JSON.parse(localStorage.getItem(ID+"-"+mes))||[];
   dados.pop();
-  localStorage.setItem(ID+"-"+mesAtual(), JSON.stringify(dados));
-  backup();
+  localStorage.setItem(ID+"-"+mes,JSON.stringify(dados));
   carregar();
 }
 
-function fecharMes(){
-  const chaveFechamento = ID + "-fechado-" + mesAtual();
-  if(localStorage.getItem(chaveFechamento) === hoje()){
-    alert("⚠️ O mês já foi fechado hoje.\nFechamento duplicado bloqueado.");
-    return;
-  }
-
-  const dados = JSON.parse(localStorage.getItem(ID+"-"+mesAtual())) || [];
-  let gastos=0, lucros=0;
-  dados.forEach(i=> i.tipo==="gasto" ? gastos+=i.valor : lucros+=i.valor);
-  const resultado = lucros - gastos;
-  const status = resultado >= 0 ? "POSITIVO" : "NEGATIVO";
-
-  localStorage.setItem(chaveFechamento, hoje());
-  backup();
-
-  const texto =
-    "📊 *Resumo financeiro – Karina*%0A%0A"+
-    "💸 Gastos: R$ "+gastos.toFixed(2)+"%0A"+
-    "💰 Lucros: R$ "+lucros.toFixed(2)+"%0A"+
-    "📈 Resultado: R$ "+resultado.toFixed(2)+"%0A"+
-    "*Situação:* "+status+"%0A%0A"+
-    "⏰ Fechamento registrado às 12:00";
-
-  window.open("https://wa.me/"+WHATSAPP+"?text="+texto,"_blank");
+function limpar(){
+  valor.value="";parcelas.value="";descricao.value="";
 }
 
 carregar();
 </script>
 </body>
 </html>
-
